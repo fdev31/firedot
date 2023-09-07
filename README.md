@@ -42,3 +42,10 @@ firepoint [options] <source image> <output image>
 
 Check `firepoint --help`
 
+# Typical usage
+
+Check the following apps for a complete engraving ecosystem:
+
+- https://github.com/johannesnoordanus/image2gcode can be used to convert firepoint images to gcode use the `--pixelsize` matching your machine
+- https://github.com/johannesnoordanus/grblhud allows sending the gcode & controlling the machine
+
