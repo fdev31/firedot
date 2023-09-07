@@ -12,6 +12,9 @@ firepoint [arguments] <source image> <output image>
 # Examples
 
 ![image](https://raw.githubusercontent.com/fdev31/firedot/main/images/ref.png)
+
+this color image is the input which have been used to generate the following images:
+
 ![image](https://raw.githubusercontent.com/fdev31/firedot/main/images/img1.png)
 ![image](https://raw.githubusercontent.com/fdev31/firedot/main/images/img2.png)
 ![image](https://raw.githubusercontent.com/fdev31/firedot/main/images/img3.png)
