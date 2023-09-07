@@ -7,9 +7,6 @@ import itertools
 import cv2
 import numpy as np
 
-# grey pixels will be multiplied by this factor (1.0 = disabled)
-ANTIALIASED_DARKENING = 1.0
-
 default_values = {
     "downscale_factor": 1,
     "gamma": 1.0,
@@ -25,10 +22,11 @@ default_values = {
     "sharpen": 0.5,
     "threshold": 30,
     "hypersample": 3.0,
+    "midtone_value": 90,
 }
 
 
-def spread_dots(circle_radius, spread_size): # {{{
+def spread_dots(circle_radius, spread_size):  # {{{
     height, width = circle_radius.shape
     for y in range(0, height, spread_size):
         for x in range(0, width, spread_size):
@@ -54,9 +52,12 @@ def spread_dots(circle_radius, spread_size): # {{{
                     continue
                 remain -= 1
                 circle_radius[cy, cx] += 1
+
+
 # }}}
 
-def draw_circles(img, radiuses, max_diameter, randomize, use_squares): # {{{
+
+def draw_circles(img, radiuses, max_diameter, randomize, use_squares):  # {{{
     height, width = radiuses.shape
 
     offset = max_diameter // 2
@@ -94,9 +95,12 @@ def draw_circles(img, radiuses, max_diameter, randomize, use_squares): # {{{
                     thickness=-1,
                     lineType=cv2.LINE_AA,
                 )
+
+
 # }}}
 
-def mean_removal(image, kernel_size=3, strength=1.0): # {{{
+
+def mean_removal(image, kernel_size=3, strength=1.0):  # {{{
     """
     Apply mean removal filter to an input image.
 
@@ -128,14 +132,17 @@ def mean_removal(image, kernel_size=3, strength=1.0): # {{{
     processed_image = np.clip(processed_image, 0, 255).astype(np.uint8)
 
     return processed_image
+
+
 # }}}
+
 
 def blend(image1, image2, factor=0.5):
     """Blend two images using a given factor"""
     return cv2.addWeighted(image1, 1 - factor, image2, factor, 0)
 
 
-def create_halftone( # {{{
+def create_halftone(  # {{{
     input_image,
     output_image,
     downscale_factor=default_values["downscale_factor"],
@@ -152,6 +159,7 @@ def create_halftone( # {{{
     threshold=default_values["threshold"],
     no_dots=default_values["no-dots"],
     hypersample=default_values["hypersample"],
+    midtone_value=default_values["midtone_value"],
 ):
     f"""
     Create a halftone image from an input image
@@ -171,11 +179,22 @@ def create_halftone( # {{{
     :param threshold: Changes what is considered black or white [default={threshold}]
     :param no_dots: Do not draw dots [default={no_dots}]
     :param hypersample: Hyper-sampling factor [default={hypersample}]
+    :param midtone_value: Value of non-black/ non-white pixels when using hypersample [default={midtone_value}]
     """
     # Load the input image as greyscale
     img = cv2.imread(input_image)
     img = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)[..., 2]
     grey_img = img  # keep an unprocessed reference for later
+
+    assert midtone_value >= 0 and midtone_value <= 255, "Midtone value must be between 0 and 255"
+    assert output_width is None or output_width > 10, "Output width must be positive"
+    assert spread_size >= 1, "Spread size must be positive"
+    assert max_diameter >= 1, "Diameter must be positive"
+    assert hypersample >= 1.0, "Hypersample must be >= 1"
+    assert normalize >= 0, "Normalize must be >= 0"
+    assert sharpen >= 0, "Sharpening must be >= 0"
+    assert multiply >= 0, "Multiply must be >= 0"
+    assert gamma >= 0, "Gamma must be >= 0"
 
     if output_width is not None:
         downscale_factor = (max_diameter * img.shape[1]) / output_width
@@ -191,7 +210,7 @@ def create_halftone( # {{{
         )
 
     if sharpen:
-        img = blend(img, mean_removal(img, strength=5*hypersample), sharpen)
+        img = blend(img, mean_removal(img, strength=5 * hypersample), sharpen)
 
     if normalize:
         img = blend(img, cv2.equalizeHist(img), normalize)
@@ -232,13 +251,21 @@ def create_halftone( # {{{
 
     if hypersample > 1.0:
         halftone = cv2.resize(
-            cv2.cvtColor(halftone.astype(np.float32), cv2.COLOR_GRAY2RGB), (0, 0), fx=1.0/hypersample, fy=1.0/hypersample, interpolation=cv2.INTER_CUBIC)
+            cv2.cvtColor(halftone.astype(np.float32), cv2.COLOR_GRAY2RGB),
+            (0, 0),
+            fx=1.0 / hypersample,
+            fy=1.0 / hypersample,
+            interpolation=cv2.INTER_CUBIC,
+        )
 
-        halftone[(threshold < halftone) & (halftone < 255 - threshold)] = 127
+        halftone[(threshold < halftone) & (halftone < 255 - threshold)] = midtone_value
 
     # Save the halftone image
     cv2.imwrite(output_image, halftone)
+
+
 # }}}
+
 
 def main():
     # Argument handling {{{
@@ -261,7 +288,11 @@ def main():
     parser.add_argument("output_image", help="Output halftone image filename")
     add_argument("downscale_factor", type=int, help="Downscale factor")
     add_argument("gamma", type=float, help="Gamma correction")
-    add_argument("multiply", type=float, help="Multiplication factor for diameters (0 = white image, >1 = darker image)")
+    add_argument(
+        "multiply",
+        type=float,
+        help="Multiplication factor for diameters (0 = white image, >1 = darker image)",
+    )
     add_argument(
         "no-randomize", action="store_true", help="Do not randomize positions of dots"
     )
@@ -270,9 +301,17 @@ def main():
         action="store_true",
         help="Do not spread the dots values for a larger dynamic range",
     )
-    add_argument("max_diameter", type=int, help="Maximum radius of the halftone dots.\noutput image size will increase accordingly")
+    add_argument(
+        "max_diameter",
+        type=int,
+        help="Maximum radius of the halftone dots.\noutput image size will increase accordingly",
+    )
     add_argument("spread_size", type=int, help="defines block size used in spreading")
-    add_argument("width", type=int, help="Output image width - autocompute 'downscale_factor' to respect 'max_diameter'")
+    add_argument(
+        "width",
+        type=int,
+        help="Output image width - autocompute 'downscale_factor' to respect 'max_diameter'",
+    )
     add_argument(
         "use_squares", action="store_true", help="Use squares instead of circles"
     )
@@ -287,6 +326,11 @@ def main():
         help="Do not draw B&W dots (only process the image)",
     )
     add_argument("hypersample", type=float, help="Hyper-sampling factor")
+    add_argument(
+        "midtone_value",
+        type=int,
+        help="Value of non-black/ non-white pixels when using hypersample (0=black, 255=white)",
+    )
 
     args = parser.parse_args()  # }}}
 
@@ -307,6 +351,7 @@ def main():
         args.threshold,
         args.no_dots,
         args.hypersample,
+        args.midtone_value,
     )
 
 
