@@ -14,7 +14,7 @@ this color image is the input which have been used to generate the following 4x4
 ![image](https://raw.githubusercontent.com/fdev31/firedot/main/images/img1.png)
 ![image](https://raw.githubusercontent.com/fdev31/firedot/main/images/img3.png)
 
-*Note*: such output image is too bright:
+*Note*: such output image is too bright / requires high power (not ideal):
 
 ![image](https://raw.githubusercontent.com/fdev31/firedot/main/images/img2.png)
 
