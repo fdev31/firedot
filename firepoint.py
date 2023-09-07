@@ -186,7 +186,10 @@ def create_halftone(  # {{{
     img = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)[..., 2]
     grey_img = img  # keep an unprocessed reference for later
 
-    assert midtone_value >= 0 and midtone_value <= 255, "Midtone value must be between 0 and 255"
+    # asserts {{{
+    assert (
+        midtone_value >= 0 and midtone_value <= 255
+    ), "Midtone value must be between 0 and 255"
     assert output_width is None or output_width > 10, "Output width must be positive"
     assert spread_size >= 1, "Spread size must be positive"
     assert max_diameter >= 1, "Diameter must be positive"
@@ -195,11 +198,15 @@ def create_halftone(  # {{{
     assert sharpen >= 0, "Sharpening must be >= 0"
     assert multiply >= 0, "Multiply must be >= 0"
     assert gamma >= 0, "Gamma must be >= 0"
+    # }}}
 
+    # auto downscale (--width) {{{
     if output_width is not None:
         downscale_factor = (max_diameter * img.shape[1]) / output_width
         print(f"Downscaled {downscale_factor:.1f}x")
+    # }}}
 
+    # resize image if not in "effects only" mode {{{
     if not no_dots:
         img = cv2.resize(
             img,
@@ -208,17 +215,21 @@ def create_halftone(  # {{{
             fy=hypersample / downscale_factor,
             interpolation=cv2.INTER_AREA,
         )
+    # }}}
 
+    # pre-process: sharpen & normalize {{{
     if sharpen:
         img = blend(img, mean_removal(img, strength=5 * hypersample), sharpen)
 
     if normalize:
         img = blend(img, cv2.equalizeHist(img), normalize)
+    # }}}
 
     if no_dots:
         cv2.imwrite(output_image, img)
         return
 
+    # big image used for refecence pixels (PERF: avoid creation ?) {{{
     big_img = cv2.resize(
         grey_img,
         (0, 0),
@@ -227,6 +238,7 @@ def create_halftone(  # {{{
         interpolation=cv2.INTER_NEAREST,
     )
     del grey_img
+    # }}}
 
     # Create an empty canvas for the halftone image with floating-point values
     halftone = np.ones(big_img.shape, dtype=np.uint8) * 255
@@ -249,6 +261,7 @@ def create_halftone(  # {{{
     halftone[white_mask > 0] = 255
     # }}}
 
+    # Downscale if image was supersampled & fix halftones {{{
     if hypersample > 1.0:
         halftone = cv2.resize(
             cv2.cvtColor(halftone.astype(np.float32), cv2.COLOR_GRAY2RGB),
@@ -257,8 +270,9 @@ def create_halftone(  # {{{
             fy=1.0 / hypersample,
             interpolation=cv2.INTER_CUBIC,
         )
-
+        # set halftones value
         halftone[(threshold < halftone) & (halftone < 255 - threshold)] = midtone_value
+    # }}}
 
     # Save the halftone image
     cv2.imwrite(output_image, halftone)
@@ -333,6 +347,8 @@ def main():
     )
 
     args = parser.parse_args()  # }}}
+
+    # call the processing function
 
     create_halftone(
         args.input_image,
