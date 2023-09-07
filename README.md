@@ -13,11 +13,16 @@ firepoint [arguments] <source image> <output image>
 
 ![image](https://raw.githubusercontent.com/fdev31/firedot/main/images/ref.png)
 
-this color image is the input which have been used to generate the following images:
+this color image is the input which have been used to generate the following 4x4cm wooden squares from those images:
+
+![image](https://raw.githubusercontent.com/fdev31/firedot/main/images/output.jpg)
 
 ![image](https://raw.githubusercontent.com/fdev31/firedot/main/images/img1.png)
-![image](https://raw.githubusercontent.com/fdev31/firedot/main/images/img2.png)
 ![image](https://raw.githubusercontent.com/fdev31/firedot/main/images/img3.png)
+
+*Note*: such output image is too bright:
+
+![image](https://raw.githubusercontent.com/fdev31/firedot/main/images/img2.png)
 
 # Basic arguments
 
