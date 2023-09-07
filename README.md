@@ -21,7 +21,7 @@ this color image is the input which have been used to generate the following 4x4
 ## Syntax
 
 ```
-firepoint [arguments] <source image> <output image>
+firepoint [options] <source image> <output image>
 ```
 
 ## Installation
@@ -29,7 +29,7 @@ firepoint [arguments] <source image> <output image>
 `pip install firedot`
 
 
-## Basic arguments
+## Options
 
 - `--use_squares` draws squares instead of circles, sometimes provides better results
 - `--width` forces a specific width (in pixels) for the output image
@@ -38,7 +38,7 @@ firepoint [arguments] <source image> <output image>
 - `--sharpen` sharpens the image, `0` to disable up to `1` (100% sharper)
 - `--hypersample` When > 1, will work on a higher definition image and will re-scale it down at the end. Generally increasing the quality drastically, but can lead to weird effects with some values `3` and `5` can provide spectacular results but `1` leads to more consistent output across laser settings (outputs a pure black & white image).
 
-## Advanced parameters
+## Advanced options
 
 Check `firepoint --help`
 
