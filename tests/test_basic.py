@@ -6,9 +6,9 @@ import cv2
 import numpy as np
 from firepoint import create_halftone
 
-from testconfig import TEST_IMAGES_DIR, EXPECTED_OUTPUT_DIR
+from testconfig import TEST_IMAGES_DIR, EXPECTED_OUTPUT_DIR, getOpt
 
-TMP_IMAGE = tempfile.mktemp(suffix=".png")
+TMP_IMAGE = "testimage.png"
 
 # Create a list of test cases with input images, options, and expected output images
 
@@ -16,7 +16,7 @@ TMP_IMAGE = tempfile.mktemp(suffix=".png")
 TEST_CASES: list[tuple[str, dict, str]] = [
     (
         os.path.join(TEST_IMAGES_DIR, name.replace("_output", "")),
-        {},
+        getOpt(name.replace("_output", "")),
         os.path.join(EXPECTED_OUTPUT_DIR, name),
     )
     for name in os.listdir(EXPECTED_OUTPUT_DIR)

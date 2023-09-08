@@ -7,6 +7,8 @@ import itertools
 import cv2
 import numpy as np
 
+random.seed(1)
+
 default_values = {
     "downscale_factor": 1,
     "gamma": 1.0,
@@ -148,8 +150,8 @@ def create_halftone(  # {{{
     downscale_factor=default_values["downscale_factor"],
     gamma=default_values["gamma"],
     multiply=default_values["multiply"],
-    randomize=default_values["no-randomize"],
-    spread=default_values["no-spread"],
+    randomize=not default_values["no-randomize"],
+    spread=not default_values["no-spread"],
     max_diameter=default_values["max_diameter"],
     spread_size=default_values["spread_size"],
     output_width=default_values["width"],
