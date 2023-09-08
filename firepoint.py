@@ -22,7 +22,7 @@ default_values = {
     "sharpen": 0.5,
     "threshold": 30,
     "hypersample": 3.0,
-    "midtone_value": 90,
+    "midtone_value": 127,
 }
 
 
@@ -192,7 +192,7 @@ def create_halftone(  # {{{
     ), "Midtone value must be between 0 and 255"
     assert output_width is None or output_width > 10, "Output width must be positive"
     assert spread_size >= 1, "Spread size must be positive"
-    assert max_diameter >= 1, "Diameter must be positive"
+    assert max_diameter >= 4, "Diameter must be positive"
     assert hypersample >= 1.0, "Hypersample must be >= 1"
     assert normalize >= 0, "Normalize must be >= 0"
     assert sharpen >= 0, "Sharpening must be >= 0"
