@@ -271,7 +271,7 @@ def create_halftone(  # {{{
             interpolation=cv2.INTER_CUBIC,
         )
         # set halftones value
-        halftone[(threshold < halftone) & (halftone < 255 - threshold)] = midtone_value
+        halftone[(halftone > 0) & (halftone < 255)] = midtone_value
     # }}}
 
     # Save the halftone image
