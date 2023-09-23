@@ -27,7 +27,7 @@ default_values = {
     "hypersample": 3.0,
     "midtone_value": int(255 / 2),
     "unsharp": 1.0,
-    "unsharp_radius": 2.5,
+    "unsharp_radius": 2,
 }
 
 
@@ -168,9 +168,7 @@ def unsharp_mask(image_array, alpha, radius):  # {{{
     sharpened = image_array + alpha * high_pass
 
     # Clip the pixel values to the valid range [0, 255]
-    sharpened = np.clip(sharpened, 0, 255).astype(np.uint8)
-
-    return sharpened  # }}}
+    return np.clip(sharpened, 0, 255).astype(np.uint8)  # }}}
 
 
 def blend(image1, image2, factor=0.5):
@@ -274,7 +272,7 @@ def create_halftone(  # {{{
     if no_dots:
         if output_image:
             cv2.imwrite(output_image, img)
-        return img
+        return np.clip(img.astype(float) ** gamma, 0, 255).astype(np.uint8)
 
     # big image used for refecence pixels (PERF: avoid creation ?) {{{
     big_img = cv2.resize(
@@ -292,7 +290,7 @@ def create_halftone(  # {{{
 
     # make list of circle radiuses
     darkness = 1.0 - (img / 255.0) ** gamma
-    intensity = np.where(darkness == 1.0, -1.0, darkness * max_diameter * multiply)
+    intensity = darkness * max_diameter * multiply
 
     if spread:
         spread_dots(intensity, spread_size)
