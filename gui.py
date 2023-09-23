@@ -33,18 +33,32 @@ class ImageMoveApp(Gtk.Window):
         self.unsharp_scale = Gtk.Scale(orientation=Gtk.Orientation.HORIZONTAL)
         self.unsharp_radius_scale = Gtk.Scale(orientation=Gtk.Orientation.HORIZONTAL)
         self.gamma_scale = Gtk.Scale(orientation=Gtk.Orientation.HORIZONTAL)
+        self.gamma_scale.set_digits(2)
         self.multiply_scale = Gtk.Scale(orientation=Gtk.Orientation.HORIZONTAL)
+        self.multiply_scale.set_digits(2)
         self.max_diameter_scale = Gtk.Scale(orientation=Gtk.Orientation.HORIZONTAL)
         self.spread_size_scale = Gtk.Scale(orientation=Gtk.Orientation.HORIZONTAL)
-        # make output width a integer input widget
-        self.output_width_entry = Gtk.SpinButton(
+
+        self.pixel_size_entry = Gtk.SpinButton(
             adjustment=Gtk.Adjustment(
-                value=200, lower=100, upper=4000, step_increment=10, page_increment=100
+                value=0.08, lower=0.01, upper=0.2, step_increment=0.01
             )
         )
-        self.output_width_entry.set_digits(0)
-        self.output_width_entry.set_max_width_chars(5)
-        self.output_width_entry.set_width_chars(5)
+        self.pixel_size_entry.set_digits(2)
+
+        self.image_width_entry = Gtk.SpinButton(
+            adjustment=Gtk.Adjustment(
+                value=4, lower=0.1, upper=4000, step_increment=1, page_increment=10
+            )
+        )
+        self.image_width_entry.set_digits(2)
+
+        # self.output_width_entry = Gtk.SpinButton(
+        #     adjustment=Gtk.Adjustment(
+        #         value=200, lower=100, upper=4000, step_increment=10, page_increment=100
+        #     )
+        # )
+        # self.output_width_entry.set_digits(0)
         self.normalize_scale = Gtk.Scale(
             orientation=Gtk.Orientation.HORIZONTAL,
             adjustment=Gtk.Adjustment(
@@ -60,6 +74,7 @@ class ImageMoveApp(Gtk.Window):
         self.randomize_button = Gtk.CheckButton(label="Randomize")
         self.spread_button = Gtk.CheckButton(label="Spread")
         self.use_squares_button = Gtk.CheckButton(label="Use squares")
+        self.dotify_button = Gtk.CheckButton(label="Pointify")
 
         self.process_button = Gtk.Button(label="Save Processed Image")
         self.open_button = Gtk.Button(label="Open Image")
@@ -68,10 +83,10 @@ class ImageMoveApp(Gtk.Window):
         self.unsharp_scale.set_range(0, 5.0)
         self.unsharp_radius_scale.set_range(0, 20.0)
         self.gamma_scale.set_range(0, 2.0)
-        self.multiply_scale.set_range(0, 5.0)
+        self.multiply_scale.set_range(0, 2.0)
         self.max_diameter_scale.set_range(4, 8)
         self.spread_size_scale.set_range(1, 10)
-        self.sharpen_scale.set_range(0, 3.0)
+        self.sharpen_scale.set_range(0, 1.0)
         self.threshold_scale.set_range(0, 100)
         self.hypersample_scale.set_range(1, 7)
 
@@ -96,6 +111,7 @@ class ImageMoveApp(Gtk.Window):
         self.max_diameter_scale.set_value(default_values["max_diameter"])
         self.spread_size_scale.set_value(default_values["spread_size"])
         self.use_squares_button.set_active(default_values["use_squares"])
+        self.dotify_button.set_active(True)
         self.normalize_scale.set_value(default_values["normalize"])
         self.sharpen_scale.set_value(default_values["sharpen"])
         self.threshold_scale.set_value(default_values["threshold"])
@@ -125,8 +141,15 @@ class ImageMoveApp(Gtk.Window):
 
         panel.pack_start(self.open_button, False, False, 0)
         panel.pack_start(
-            parameter_row("Output Width:", self.output_width_entry), False, False, 0
+            parameter_row("Image width (cm):", self.image_width_entry), False, False, 0
         )
+        panel.pack_start(
+            parameter_row("Pixel size (mm):", self.pixel_size_entry), False, False, 0
+        )
+        # panel.pack_start(
+        #     parameter_row("Output Width:", self.output_width_entry), False, False, 0
+        # )
+        panel.pack_start(self.dotify_button, False, False, 0)
         panel.pack_start(self.use_squares_button, False, False, 0)
         panel.pack_start(self.randomize_button, False, False, 0)
         panel.pack_start(self.spread_button, False, False, 0)
@@ -136,15 +159,15 @@ class ImageMoveApp(Gtk.Window):
         panel.pack_start(
             parameter_row("Max Diameter:", self.max_diameter_scale), False, False, 0
         )
+        panel.pack_start(
+            parameter_row("Mutiply diam.:", self.multiply_scale), False, False, 0
+        )
         panel.pack_start(parameter_row("Gamma:", self.gamma_scale), False, False, 0)
         panel.pack_start(
             parameter_row("Threshold:", self.threshold_scale), False, False, 0
         )
         panel.pack_start(
             parameter_row("Normalize:", self.normalize_scale), False, False, 0
-        )
-        panel.pack_start(
-            parameter_row("Multiply:", self.multiply_scale), False, False, 0
         )
         panel.pack_start(parameter_row("Unsharp:", self.unsharp_scale), False, False, 0)
         panel.pack_start(
@@ -170,10 +193,18 @@ class ImageMoveApp(Gtk.Window):
         self.gamma_scale.connect("value-changed", self.update_image)
         self.multiply_scale.connect("value-changed", self.update_image)
         self.randomize_button.connect("toggled", self.update_image)
+        self.spread_button.connect(
+            "toggled",
+            lambda widget: self.spread_size_scale.set_sensitive(widget.get_active()),
+        )
         self.spread_button.connect("toggled", self.update_image)
         self.max_diameter_scale.connect("value-changed", self.update_image)
         self.spread_size_scale.connect("value-changed", self.update_image)
-        self.output_width_entry.connect("value-changed", self.update_image)
+        self.image_width_entry.connect("value-changed", self.update_image)
+        self.pixel_size_entry.connect("value-changed", self.update_image)
+        # self.output_width_entry.connect("value-changed", self.update_image)
+        self.dotify_button.connect("toggled", self.update_image)
+        self.dotify_button.connect("toggled", self.dotify_changed)
         self.use_squares_button.connect("toggled", self.update_image)
         self.normalize_scale.connect("value-changed", self.update_image)
         self.sharpen_scale.connect("value-changed", self.update_image)
@@ -214,6 +245,12 @@ class ImageMoveApp(Gtk.Window):
         )
         self.processing_thread.start()
 
+    @property
+    def output_width(self):
+        return self.image_width_entry.get_value() / (
+            self.pixel_size_entry.get_value() / 10.0
+        )
+
     def process_image(self):
         unsharp = self.unsharp_scale.get_value()
         unsharp_radius = self.unsharp_radius_scale.get_value()
@@ -223,8 +260,9 @@ class ImageMoveApp(Gtk.Window):
         no_spread = not self.spread_button.get_active()
         max_diameter = int(self.max_diameter_scale.get_value())
         spread_size = int(self.spread_size_scale.get_value())
-        output_width = self.output_width_entry.get_value()
+        output_width = self.output_width
         use_squares = self.use_squares_button.get_active()
+        no_dots = not self.dotify_button.get_active()
         normalize = self.normalize_scale.get_value()
         sharpen = self.sharpen_scale.get_value()
         threshold = int(self.threshold_scale.get_value())
@@ -249,7 +287,7 @@ class ImageMoveApp(Gtk.Window):
             normalize=normalize,
             sharpen=sharpen,
             threshold=threshold,
-            no_dots=False,
+            no_dots=no_dots,
             hypersample=hypersample,
             midtone_value=midtone_value,
         )
@@ -260,6 +298,19 @@ class ImageMoveApp(Gtk.Window):
         if self._dirty:
             self._dirty = False
             self.process_image()
+
+    def dotify_changed(self, widget):
+        # disable spread size, spread button, max_diameter, multiply_scale when the widget isn't active
+        sensitivity = widget.get_active()
+        self.spread_button.set_sensitive(sensitivity)
+        self.spread_size_scale.set_sensitive(
+            sensitivity and self.spread_button.get_active()
+        )
+        self.max_diameter_scale.set_sensitive(sensitivity)
+        self.multiply_scale.set_sensitive(sensitivity)
+        self.midtone_value_scale.set_sensitive(sensitivity)
+        self.randomize_button.set_sensitive(sensitivity)
+        self.threshold_scale.set_sensitive(sensitivity)
 
     def update_display_image(self, image_array):
         if self.image is None:
@@ -296,6 +347,7 @@ class ImageMoveApp(Gtk.Window):
         spread_size = int(self.spread_size_scale.get_value())
         output_width = int(self.output_width_button.get_active())
         use_squares = self.use_squares_button.get_active()
+        no_dots = not self.dotify_button.get_active()
         normalize = self.normalize_scale.get_value()
         sharpen = self.sharpen_scale.get_value()
         threshold = int(self.threshold_scale.get_value())
@@ -320,7 +372,7 @@ class ImageMoveApp(Gtk.Window):
             normalize=normalize,
             sharpen=sharpen,
             threshold=threshold,
-            no_dots=False,
+            no_dots=no_dots,
             hypersample=hypersample,
             midtone_value=midtone_value,
         )
