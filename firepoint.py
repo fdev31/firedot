@@ -289,7 +289,7 @@ def create_halftone(  # {{{
     halftone = np.ones(big_img.shape, dtype=np.uint8) * 255
 
     # make list of circle radiuses
-    darkness = 1.0 - (img / 255.0) ** gamma
+    darkness = 1.0 - ((img**gamma) / 255.0)
     intensity = darkness * max_diameter * multiply
 
     if spread:
