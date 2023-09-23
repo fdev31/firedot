@@ -62,15 +62,7 @@ def spread_dots(circle_radius, spread_size):  # {{{
 # }}}
 
 
-def draw_circles(
-    img,
-    radiuses,
-    max_diameter,
-    randomize,
-    use_squares,
-    midtone_value=default_values["midtone_value"],
-    hypersample=default_values["hypersample"],
-):  # {{{
+def draw_circles(img, radiuses, max_diameter, randomize, use_squares):  # {{{
     height, width = radiuses.shape
 
     offset = max_diameter // 2
@@ -91,18 +83,12 @@ def draw_circles(
                 if randomize
                 else pos
             )
-            color = 0
-            if circle_radius < max_diameter / 4:
-                circle_radius = max(
-                    hypersample * 2, circle_radius * (1 / circle_radius)
-                )
-                color = 127
             if use_squares:
                 cv2.rectangle(
                     img,
                     rpos,
                     [int(p + circle_radius) for p in rpos],
-                    color,
+                    0,
                     thickness=-1,
                 )
             else:
@@ -110,7 +96,7 @@ def draw_circles(
                     img,
                     rpos,
                     int(math.sqrt(circle_radius**2)),
-                    color,
+                    0,
                     thickness=-1,
                     lineType=cv2.LINE_AA,
                 )
@@ -322,15 +308,7 @@ def create_halftone(  # {{{
     if spread:
         spread_dots(intensity, spread_size)
 
-    draw_circles(
-        halftone,
-        intensity,
-        max_diameter,
-        randomize,
-        use_squares,
-        midtone_value,
-        hypersample,
-    )
+    draw_circles(halftone, intensity, max_diameter, randomize, use_squares)
 
     # handle black & white masks {{{
     black_mask = (big_img < threshold).astype(np.uint8)
