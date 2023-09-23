@@ -225,6 +225,7 @@ def create_halftone(  # {{{
     else:
         img = input_image
     img = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)[..., 2]
+    img = contrast_stretching(img)
     grey_img = img  # keep an unprocessed reference for later
 
     # asserts {{{
@@ -257,7 +258,6 @@ def create_halftone(  # {{{
             interpolation=cv2.INTER_AREA,
         )
     # }}}
-    img = contrast_stretching(img)
 
     img = unsharp_mask(img, unsharp, unsharp_radius)
 
