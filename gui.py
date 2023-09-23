@@ -2,6 +2,8 @@
 import gi
 import threading
 
+SPACING = 5
+
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, GdkPixbuf, Gdk
 import sys
@@ -28,7 +30,7 @@ class ImageMoveApp(Gtk.Window):
         self.set_default_size(*self.WINDOW_SIZE)
         self.connect("destroy", Gtk.main_quit)
 
-        main_box = Gtk.VBox(spacing=10)
+        main_box = Gtk.VBox(spacing=SPACING)
 
         self.unsharp_scale = Gtk.Scale(orientation=Gtk.Orientation.HORIZONTAL)
         self.unsharp_radius_scale = Gtk.Scale(orientation=Gtk.Orientation.HORIZONTAL)
@@ -74,15 +76,23 @@ class ImageMoveApp(Gtk.Window):
         self.randomize_button = Gtk.CheckButton(label="Randomize")
         self.spread_button = Gtk.CheckButton(label="Spread")
         self.use_squares_button = Gtk.CheckButton(label="Use squares")
-        self.dotify_button = Gtk.CheckButton(label="Pointify")
+        self.dotify_button = Gtk.ToggleButton(label="Pointify")
+        self.dotify_button.set_border_width(12)
 
-        self.process_button = Gtk.Button(label="Save Processed Image")
-        self.open_button = Gtk.Button(label="Open Image")
+        # set process button with "open" stock icon
+        self.process_button = Gtk.Button(
+            label="Save",
+            image=Gtk.Image.new_from_icon_name(Gtk.STOCK_SAVE, Gtk.IconSize.BUTTON),
+        )
+        self.open_button = Gtk.Button(
+            label="Open Image",
+            image=Gtk.Image.new_from_icon_name(Gtk.STOCK_OPEN, Gtk.IconSize.BUTTON),
+        )
 
         # Set the range and default values for the scales and toggles here
         self.unsharp_scale.set_range(0, 5.0)
         self.unsharp_radius_scale.set_range(0, 20.0)
-        self.gamma_scale.set_range(0, 2.0)
+        self.gamma_scale.set_range(0.7, 1.6)
         self.multiply_scale.set_range(0, 2.0)
         self.max_diameter_scale.set_range(4, 8)
         self.spread_size_scale.set_range(1, 10)
@@ -111,7 +121,6 @@ class ImageMoveApp(Gtk.Window):
         self.max_diameter_scale.set_value(default_values["max_diameter"])
         self.spread_size_scale.set_value(default_values["spread_size"])
         self.use_squares_button.set_active(default_values["use_squares"])
-        self.dotify_button.set_active(True)
         self.normalize_scale.set_value(default_values["normalize"])
         self.sharpen_scale.set_value(default_values["sharpen"])
         self.threshold_scale.set_value(default_values["threshold"])
@@ -130,21 +139,35 @@ class ImageMoveApp(Gtk.Window):
 
         # Create labels and containers for parameters
 
-        def parameter_row(label, widget):
-            box = Gtk.HBox(spacing=10)
+        def parameter_row(label, widget, align=Gtk.Align.END):
+            box = Gtk.HBox(spacing=SPACING)
             label_widget = Gtk.Label(label=label)
             box.pack_start(label_widget, False, False, 0)
             box.pack_start(widget, True, True, 0)
+            # align label on the bottom
+            label_widget.set_valign(align)
+            widget.set_valign(align)
             return box
 
-        panel = Gtk.VBox()
+        panel = Gtk.VBox(spacing=SPACING)
 
-        panel.pack_start(self.open_button, False, False, 0)
+        panel.pack_start(self.open_button, False, False, SPACING * 2)
+        panel.pack_start(self.process_button, False, False, 0)
         panel.pack_start(
-            parameter_row("Image width (cm):", self.image_width_entry), False, False, 0
+            parameter_row(
+                "Image width (cm):", self.image_width_entry, align=Gtk.Align.BASELINE
+            ),
+            False,
+            False,
+            0,
         )
         panel.pack_start(
-            parameter_row("Pixel size (mm):", self.pixel_size_entry), False, False, 0
+            parameter_row(
+                "Pixel size (mm):", self.pixel_size_entry, align=Gtk.Align.BASELINE
+            ),
+            False,
+            False,
+            0,
         )
         # panel.pack_start(
         #     parameter_row("Output Width:", self.output_width_entry), False, False, 0
@@ -153,19 +176,9 @@ class ImageMoveApp(Gtk.Window):
         panel.pack_start(self.use_squares_button, False, False, 0)
         panel.pack_start(self.randomize_button, False, False, 0)
         panel.pack_start(self.spread_button, False, False, 0)
-        panel.pack_start(
-            parameter_row("Spread Size:", self.spread_size_scale), False, False, 0
-        )
-        panel.pack_start(
-            parameter_row("Max Diameter:", self.max_diameter_scale), False, False, 0
-        )
-        panel.pack_start(
-            parameter_row("Mutiply diam.:", self.multiply_scale), False, False, 0
-        )
+
+        panel.pack_start(Gtk.Label(label="Settings:"), False, False, SPACING)
         panel.pack_start(parameter_row("Gamma:", self.gamma_scale), False, False, 0)
-        panel.pack_start(
-            parameter_row("Threshold:", self.threshold_scale), False, False, 0
-        )
         panel.pack_start(
             parameter_row("Normalize:", self.normalize_scale), False, False, 0
         )
@@ -175,12 +188,24 @@ class ImageMoveApp(Gtk.Window):
         )
         panel.pack_start(parameter_row("Sharpen:", self.sharpen_scale), False, False, 0)
         panel.pack_start(
+            parameter_row("Midtone Value:", self.midtone_value_scale), False, False, 0
+        )
+        panel.pack_start(Gtk.Label(label="Advanced:"), False, False, SPACING)
+        panel.pack_start(
             parameter_row("Hypersample:", self.hypersample_scale), False, False, 0
         )
         panel.pack_start(
-            parameter_row("Midtone Value:", self.midtone_value_scale), False, False, 0
+            parameter_row("Max Diameter:", self.max_diameter_scale), False, False, 0
         )
-        panel.pack_start(self.process_button, True, False, 0)
+        panel.pack_start(
+            parameter_row("Mutiply diam.:", self.multiply_scale), False, False, 0
+        )
+        panel.pack_start(
+            parameter_row("Spread Size:", self.spread_size_scale), False, False, 0
+        )
+        panel.pack_start(
+            parameter_row("Threshold:", self.threshold_scale), False, False, 0
+        )
 
         scrolled_window = Gtk.ScrolledWindow()
         scrolled_window.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
@@ -215,11 +240,16 @@ class ImageMoveApp(Gtk.Window):
         self.process_button.connect("clicked", self.show_save_dialog)
         self.open_button.connect("clicked", self.show_open_dialog)
         panel_box = Gtk.HBox()
-        panel_box.pack_start(main_box, True, True, 10)
-        panel_box.pack_start(panel, False, False, 10)
+        panel_box.pack_start(main_box, True, True, SPACING)
+        panel_box.pack_start(panel, False, False, SPACING)
         main_box.pack_start(scrolled_window, True, True, 0)
+        # add a quit button
+        quit_button = Gtk.Button.new_with_label("Quit")
+        quit_button.connect("clicked", Gtk.main_quit)
+        panel.pack_end(quit_button, False, False, SPACING)
 
         self.update_image()
+        self.dotify_changed(self.dotify_button)
 
         self.add(panel_box)
 
@@ -311,6 +341,9 @@ class ImageMoveApp(Gtk.Window):
         self.midtone_value_scale.set_sensitive(sensitivity)
         self.randomize_button.set_sensitive(sensitivity)
         self.threshold_scale.set_sensitive(sensitivity)
+        self.use_squares_button.set_sensitive(sensitivity)
+        self.image_width_entry.set_sensitive(sensitivity)
+        self.pixel_size_entry.set_sensitive(sensitivity)
 
     def update_display_image(self, image_array):
         if self.image is None:
