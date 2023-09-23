@@ -142,24 +142,9 @@ def mean_removal(image, kernel_size=3, strength=1.0):  # {{{
 # }}}
 
 
-def histogram_equalization(image):  # {{{
-    # Compute the histogram
-    hist, bins = np.histogram(image.flatten(), bins=256, range=(0, 256))
-
-    # Compute the cumulative distribution
-    cdf = hist.cumsum()
-    cdf_normalized = cdf * hist.max() / cdf.max()
-
-    # Map the pixel values using the cumulative distribution
-    equalized_image = np.interp(image.flatten(), bins[:-1], cdf_normalized)
-    equalized_image = equalized_image.reshape(image.shape).astype(np.uint8)
-
-    return equalized_image  # }}}
-
-
 def contrast_stretching(image, min_out=0, max_out=255):  # {{{
     min_in, max_in = image.min(), image.max()
-    stretched_image = (image - min_in) * (max_out - min_out) / (
+    stretched_image = (image.astype(float) - min_in) * (max_out - min_out) / (
         max_in - min_in
     ) + min_out
     stretched_image = np.clip(stretched_image, min_out, max_out).astype(np.uint8)
@@ -168,6 +153,7 @@ def contrast_stretching(image, min_out=0, max_out=255):  # {{{
 
 
 def unsharp_mask(image_array, alpha, radius):  # {{{
+    image_array = image_array.astype(float)
     # Apply Gaussian blur with the specified radius
     blurred = gaussian_filter(image_array, sigma=radius)
 
@@ -269,10 +255,9 @@ def create_halftone(  # {{{
             interpolation=cv2.INTER_AREA,
         )
     # }}}
-    # img = histogram_equalization(img)
-    # img = contrast_stretching(img)
+    img = contrast_stretching(img)
 
-    # img = unsharp_mask(img, unsharp, unsharp_radius)
+    img = unsharp_mask(img, unsharp, unsharp_radius)
 
     # pre-process: sharpen & normalize {{{
     if sharpen:

@@ -30,7 +30,6 @@ class ImageMoveApp(Gtk.Window):
 
         main_box = Gtk.VBox(spacing=10)
 
-        self.downscale_factor_scale = Gtk.Scale(orientation=Gtk.Orientation.HORIZONTAL)
         self.unsharp_scale = Gtk.Scale(orientation=Gtk.Orientation.HORIZONTAL)
         self.unsharp_radius_scale = Gtk.Scale(orientation=Gtk.Orientation.HORIZONTAL)
         self.gamma_scale = Gtk.Scale(orientation=Gtk.Orientation.HORIZONTAL)
@@ -66,16 +65,15 @@ class ImageMoveApp(Gtk.Window):
         self.open_button = Gtk.Button(label="Open Image")
 
         # Set the range and default values for the scales and toggles here
-        self.downscale_factor_scale.set_range(0, 5.0)
         self.unsharp_scale.set_range(0, 5.0)
-        self.unsharp_radius_scale.set_range(0, 5.0)
+        self.unsharp_radius_scale.set_range(0, 20.0)
         self.gamma_scale.set_range(0, 2.0)
         self.multiply_scale.set_range(0, 5.0)
         self.max_diameter_scale.set_range(4, 8)
         self.spread_size_scale.set_range(1, 10)
         self.sharpen_scale.set_range(0, 3.0)
         self.threshold_scale.set_range(0, 100)
-        self.hypersample_scale.set_range(1, 5)
+        self.hypersample_scale.set_range(1, 7)
 
         def only_odd(widget):
             val = widget.get_value()
@@ -89,7 +87,6 @@ class ImageMoveApp(Gtk.Window):
         self.midtone_value_scale.set_digits(0)
 
         # Set default values for scales and toggles
-        self.downscale_factor_scale.set_value(default_values["downscale_factor"])
         self.unsharp_scale.set_value(default_values["unsharp"])
         self.unsharp_radius_scale.set_value(default_values["unsharp_radius"])
         self.gamma_scale.set_value(default_values["gamma"])
@@ -127,33 +124,33 @@ class ImageMoveApp(Gtk.Window):
         panel = Gtk.VBox()
 
         panel.pack_start(self.open_button, False, False, 0)
+        panel.pack_start(
+            parameter_row("Output Width:", self.output_width_entry), False, False, 0
+        )
+        panel.pack_start(self.use_squares_button, False, False, 0)
         panel.pack_start(self.randomize_button, False, False, 0)
         panel.pack_start(self.spread_button, False, False, 0)
         panel.pack_start(
             parameter_row("Spread Size:", self.spread_size_scale), False, False, 0
         )
-        panel.pack_start(self.use_squares_button, False, False, 0)
         panel.pack_start(
             parameter_row("Max Diameter:", self.max_diameter_scale), False, False, 0
+        )
+        panel.pack_start(parameter_row("Gamma:", self.gamma_scale), False, False, 0)
+        panel.pack_start(
+            parameter_row("Threshold:", self.threshold_scale), False, False, 0
+        )
+        panel.pack_start(
+            parameter_row("Normalize:", self.normalize_scale), False, False, 0
+        )
+        panel.pack_start(
+            parameter_row("Multiply:", self.multiply_scale), False, False, 0
         )
         panel.pack_start(parameter_row("Unsharp:", self.unsharp_scale), False, False, 0)
         panel.pack_start(
             parameter_row("Unsharp Radius:", self.unsharp_radius_scale), False, False, 0
         )
-        panel.pack_start(parameter_row("Gamma:", self.gamma_scale), False, False, 0)
-        panel.pack_start(
-            parameter_row("Multiply:", self.multiply_scale), False, False, 0
-        )
-        panel.pack_start(
-            parameter_row("Output Width:", self.output_width_entry), False, False, 0
-        )
-        panel.pack_start(
-            parameter_row("Normalize:", self.normalize_scale), False, False, 0
-        )
         panel.pack_start(parameter_row("Sharpen:", self.sharpen_scale), False, False, 0)
-        panel.pack_start(
-            parameter_row("Threshold:", self.threshold_scale), False, False, 0
-        )
         panel.pack_start(
             parameter_row("Hypersample:", self.hypersample_scale), False, False, 0
         )
@@ -167,7 +164,6 @@ class ImageMoveApp(Gtk.Window):
         scrolled_window.add(self.image_event_box)
 
         # Connect signal handlers for parameter changes
-        self.downscale_factor_scale.connect("value-changed", self.update_image)
         self.unsharp_scale.connect("value-changed", self.update_image)
         self.unsharp_radius_scale.connect("value-changed", self.update_image)
 
@@ -219,13 +215,12 @@ class ImageMoveApp(Gtk.Window):
         self.processing_thread.start()
 
     def process_image(self):
-        downscale_factor = self.downscale_factor_scale.get_value()
         unsharp = self.unsharp_scale.get_value()
         unsharp_radius = self.unsharp_radius_scale.get_value()
         gamma = self.gamma_scale.get_value()
         multiply = self.multiply_scale.get_value()
         no_randomize = not self.randomize_button.get_active()
-        no_spread = self.spread_button.get_active()
+        no_spread = not self.spread_button.get_active()
         max_diameter = int(self.max_diameter_scale.get_value())
         spread_size = int(self.spread_size_scale.get_value())
         output_width = self.output_width_entry.get_value()
@@ -240,7 +235,7 @@ class ImageMoveApp(Gtk.Window):
         processed_image_array = create_halftone(
             input_image=self.IMAGE_PATH,
             output_image=None,
-            downscale_factor=downscale_factor,
+            downscale_factor=1,
             unsharp=unsharp,
             unsharp_radius=unsharp_radius,
             gamma=gamma,
@@ -291,7 +286,6 @@ class ImageMoveApp(Gtk.Window):
             return
 
         # Get the current parameter values from the scales and toggles
-        downscale_factor = self.downscale_factor_scale.get_value()
         unsharp = self.unsharp_scale.get_value()
         unsharp_radius = self.unsharp_radius_scale.get_value()
         gamma = self.gamma_scale.get_value()
