@@ -27,7 +27,7 @@ default_values = {
     "hypersample": 3.0,
     "midtone_value": int(255 / 2),
     "unsharp": 1.0,
-    "unsharp_radius": 1.0,
+    "unsharp_radius": 2.5,
 }
 
 
