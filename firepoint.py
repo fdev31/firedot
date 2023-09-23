@@ -23,7 +23,7 @@ default_values = {
     "use_squares": False,
     "normalize": 0.0,
     "sharpen": 0.5,
-    "threshold": 30,
+    "threshold": 10,
     "hypersample": 3.0,
     "midtone_value": int(255 / 2),
     "unsharp": 1.0,
