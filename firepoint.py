@@ -83,12 +83,16 @@ def draw_circles(img, radiuses, max_diameter, randomize, use_squares):  # {{{
                 if randomize
                 else pos
             )
+            color = 0
+            if circle_radius < max_diameter / 4:
+                circle_radius *= 2
+                color = 127
             if use_squares:
                 cv2.rectangle(
                     img,
                     rpos,
                     [int(p + circle_radius) for p in rpos],
-                    0,
+                    color,
                     thickness=-1,
                 )
             else:
@@ -96,7 +100,7 @@ def draw_circles(img, radiuses, max_diameter, randomize, use_squares):  # {{{
                     img,
                     rpos,
                     int(math.sqrt(circle_radius**2)),
-                    0,
+                    color,
                     thickness=-1,
                     lineType=cv2.LINE_AA,
                 )
