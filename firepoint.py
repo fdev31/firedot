@@ -3,6 +3,7 @@ import math
 import random
 import argparse
 import itertools
+from scipy.ndimage import gaussian_filter
 
 import cv2
 import numpy as np
@@ -25,6 +26,8 @@ default_values = {
     "threshold": 30,
     "hypersample": 3.0,
     "midtone_value": int(255 / 2),
+    "unsharp": 1.0,
+    "unsharp_radius": 1.0,
 }
 
 
@@ -153,6 +156,47 @@ def mean_removal(image, kernel_size=3, strength=1.0):  # {{{
 # }}}
 
 
+def histogram_equalization(image):  # {{{
+    # Compute the histogram
+    hist, bins = np.histogram(image.flatten(), bins=256, range=(0, 256))
+
+    # Compute the cumulative distribution
+    cdf = hist.cumsum()
+    cdf_normalized = cdf * hist.max() / cdf.max()
+
+    # Map the pixel values using the cumulative distribution
+    equalized_image = np.interp(image.flatten(), bins[:-1], cdf_normalized)
+    equalized_image = equalized_image.reshape(image.shape).astype(np.uint8)
+
+    return equalized_image  # }}}
+
+
+def contrast_stretching(image, min_out=0, max_out=255):  # {{{
+    min_in, max_in = image.min(), image.max()
+    stretched_image = (image - min_in) * (max_out - min_out) / (
+        max_in - min_in
+    ) + min_out
+    stretched_image = np.clip(stretched_image, min_out, max_out).astype(np.uint8)
+
+    return stretched_image  # }}}
+
+
+def unsharp_mask(image_array, alpha, radius):  # {{{
+    # Apply Gaussian blur with the specified radius
+    blurred = gaussian_filter(image_array, sigma=radius)
+
+    # Calculate the high-pass image (detail) by subtracting the blurred from the original
+    high_pass = image_array - blurred
+
+    # Add the high-pass image back to the original image with the specified alpha
+    sharpened = image_array + alpha * high_pass
+
+    # Clip the pixel values to the valid range [0, 255]
+    sharpened = np.clip(sharpened, 0, 255).astype(np.uint8)
+
+    return sharpened  # }}}
+
+
 def blend(image1, image2, factor=0.5):
     """Blend two images using a given factor"""
     return cv2.addWeighted(image1, 1 - factor, image2, factor, 0)
@@ -162,6 +206,8 @@ def create_halftone(  # {{{
     input_image,
     output_image,
     downscale_factor=default_values["downscale_factor"],
+    unsharp=default_values["unsharp"],
+    unsharp_radius=default_values["unsharp_radius"],
     gamma=default_values["gamma"],
     multiply=default_values["multiply"],
     randomize=not default_values["no-randomize"],
@@ -182,6 +228,8 @@ def create_halftone(  # {{{
     :param input_image: Input image (path)
     :param output_image: Output halftone image (path)
     :param downscale_factor: Downscale factor (higher = smaller image) [default={downscale_factor}]
+    :param unsharp: Unsharp masking effect [default={unsharp}]
+    :param unsharp_radius: Radius of the unsharp masking effect [default={unsharp_radius}]
     :param gamma: Gamma correction [default={gamma}]
     :param multiply: Multiplication factor for radiuses [default={multiply}]
     :param randomize: Randomize positions of dots to break the visual distribution of dots [default={randomize}]
@@ -198,7 +246,10 @@ def create_halftone(  # {{{
     :param midtone_value: Value of non-black/ non-white pixels when using hypersample [default={midtone_value}]
     """
     # Load the input image as greyscale
-    img = cv2.imread(input_image)
+    if isinstance(input_image, str):
+        img = cv2.imread(input_image)
+    else:
+        img = input_image
     img = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)[..., 2]
     grey_img = img  # keep an unprocessed reference for later
 
@@ -232,6 +283,10 @@ def create_halftone(  # {{{
             interpolation=cv2.INTER_AREA,
         )
     # }}}
+    # img = histogram_equalization(img)
+    # img = contrast_stretching(img)
+
+    # img = unsharp_mask(img, unsharp, unsharp_radius)
 
     # pre-process: sharpen & normalize {{{
     if sharpen:
@@ -242,8 +297,9 @@ def create_halftone(  # {{{
     # }}}
 
     if no_dots:
-        cv2.imwrite(output_image, img)
-        return
+        if output_image:
+            cv2.imwrite(output_image, img)
+        return img
 
     # big image used for refecence pixels (PERF: avoid creation ?) {{{
     big_img = cv2.resize(
@@ -299,7 +355,9 @@ def create_halftone(  # {{{
     # }}}
 
     # Save the halftone image
-    cv2.imwrite(output_image, halftone)
+    if output_image:
+        cv2.imwrite(output_image, halftone)
+    return halftone
 
 
 # }}}
@@ -369,6 +427,10 @@ def main():
         type=int,
         help="Value of non-black/ non-white pixels when using hypersample (0=black, 255=white)",
     )
+    add_argument("unsharp", type=float, help="Unsharp masking effect")
+    add_argument(
+        "unsharp_radius", type=int, help="Radius of the unsharp masking effect"
+    )
 
     args = parser.parse_args()  # }}}
 
@@ -378,6 +440,8 @@ def main():
         args.input_image,
         args.output_image,
         args.downscale_factor,
+        args.unsharp,
+        args.unsharp_radius,
         args.gamma,
         args.multiply,
         not args.no_randomize,

@@ -6,7 +6,12 @@ import cv2
 import numpy as np
 from firepoint import create_halftone
 
-from testconfig import TEST_IMAGES_DIR, EXPECTED_OUTPUT_DIR, getOpt
+from testconfig import (
+    TEST_IMAGES_DIR,
+    EXPECTED_OUTPUT_DIR,
+    GENERATED_OUTPUT_DIR,
+    getOpt,
+)
 
 TMP_IMAGE = "testimage.png"
 
@@ -26,11 +31,12 @@ TEST_CASES: list[tuple[str, dict, str]] = [
 
 @pytest.mark.parametrize("source_image, options, reference_image", TEST_CASES)
 def test_create_halftone(source_image, options, reference_image):
+    out = os.path.join(GENERATED_OUTPUT_DIR, source_image.split(os.path.sep)[-1])
     # Call the function to generate halftone image
-    create_halftone(source_image, TMP_IMAGE, **options)
+    create_halftone(source_image, out, **options)
 
     # Perform assertions to check if the generated image matches the expected result
-    assert_images_equal(reference_image, TMP_IMAGE)
+    assert_images_equal(reference_image, out)
 
     # Additional tests
     subtest_output_properties(TMP_IMAGE, options)
