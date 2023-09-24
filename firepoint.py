@@ -3,10 +3,40 @@ import math
 import random
 import argparse
 import itertools
-from scipy.ndimage import gaussian_filter
 
 import cv2
 import numpy as np
+
+try:
+    raise ImportError
+    from scipy.ndimage import gaussian_filter
+except ImportError:
+
+    def gaussian_filter(image_array, sigma):
+        # Calculate the filter size based on sigma (usually 3 * sigma)
+        filter_size = int(6 * sigma + 1)
+
+        # Ensure the filter size is odd for symmetry
+        if filter_size % 2 == 0:
+            filter_size += 1
+
+        # Create a 1D Gaussian kernel
+        kernel = np.exp(
+            -np.arange(-(filter_size // 2), filter_size // 2 + 1) ** 2
+            / (2 * sigma**2)
+        )
+        kernel /= np.sum(kernel)  # Normalize the kernel
+
+        # Apply the 1D Gaussian filter to rows and then columns
+        filtered_image = np.apply_along_axis(
+            lambda x: np.convolve(x, kernel, mode="same"), axis=0, arr=image_array
+        )
+        filtered_image = np.apply_along_axis(
+            lambda x: np.convolve(x, kernel, mode="same"), axis=1, arr=filtered_image
+        )
+
+        return filtered_image
+
 
 random.seed(1)
 
