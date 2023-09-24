@@ -8,7 +8,6 @@ import cv2
 import numpy as np
 
 try:
-    raise ImportError
     from scipy.ndimage import gaussian_filter
 except ImportError:
 
