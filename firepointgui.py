@@ -519,7 +519,7 @@ def thread_leave():
         Gdk.threads_leave()
 
 
-if __name__ == "__main__":
+def main():
     if Gtk.get_minor_version() < 6:
         Gdk.threads_init()  # Initialize Gdk threads
     if len(sys.argv) < 2:
@@ -530,3 +530,7 @@ if __name__ == "__main__":
 
     app.show_all()
     Gtk.main()
+
+
+if __name__ == "__main__":
+    main()

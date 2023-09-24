@@ -9,6 +9,7 @@ readme = "README.md"
 
 [tool.poetry.scripts]
 firepoint = 'firepoint:main'
+firepoint-gtk = 'firepointgui:main'
 
 [tool.poetry.dependencies]
 python = ">3.8"
