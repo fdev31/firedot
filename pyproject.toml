@@ -1,20 +1,25 @@
 [tool.poetry]
 name = "firepoint"
-version = "0.1.0"
+version = "1.0.0"
 description = "prepares your images for laser engraving"
 authors = ["fdev31 <fdev31@gmail.com>"]
 homepage = "https://github.com/fdev31/firepoint"
 license = "GPL"
 readme = "README.md"
+packages = [
+    {include = "firepointgui.py"},
+    {include = "firepoint.py"}
+]
 
 [tool.poetry.scripts]
 firepoint = 'firepoint:main'
 firepoint-gtk = 'firepointgui:main'
 
 [tool.poetry.dependencies]
-python = ">3.8"
+python = ">=3.9"
 opencv-python = "^4.8.0.76"
 numpy = "^1.25.2"
+pillow = "^10.0.1"
 
 
 [build-system]
