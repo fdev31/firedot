@@ -1,20 +1,43 @@
 #!/bin/env python
-import gi
+import sys
 import threading
 
-SPACING = 5
+from firepoint import create_halftone, default_values
+import numpy as np
+from PIL import Image
+import gi
 
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, GdkPixbuf, Gdk
-import sys
-import numpy as np
-from PIL import Image
-from firepoint import create_halftone, default_values
+
+SPACING = 5
+
+
+# Utilities for gtk layout {{{
+def parameter_row(label, widget, align=Gtk.Align.END):
+    box = Gtk.HBox(spacing=SPACING)
+    label_widget = Gtk.Label(label=label)
+    box.pack_start(label_widget, False, False, 0)
+    box.pack_start(widget, True, True, 0)
+    # align label on the bottom
+    label_widget.set_valign(align)
+    widget.set_valign(align)
+    return box
+
+
+def only_odd(widget):
+    val = widget.get_value()
+    if val > 0:
+        if val % 2 == 0:
+            widget.set_value(val - 1)
+
+
+# }}}
 
 
 class ImageMoveApp(Gtk.Window):
     def __init__(self, image_path=None):
-        super().__init__(title="GTK+ Image Move")
+        super().__init__(title="firepoint-gtk")
         self._dirty = False
 
         self.WINDOW_SIZE = (800, 600)
@@ -28,18 +51,54 @@ class ImageMoveApp(Gtk.Window):
             self.original = None
 
         self.set_default_size(*self.WINDOW_SIZE)
-        self.connect("destroy", Gtk.main_quit)
 
-        main_box = Gtk.VBox(spacing=SPACING)
+        self.create_widgets()
+        self.set_default_values()
+        self.pack_widgets()
+        self.connect_events()
+        self.update_image()
+        self.dotify_changed(self.dotify_button)
 
-        self.unsharp_scale = Gtk.Scale(orientation=Gtk.Orientation.HORIZONTAL)
-        self.unsharp_radius_scale = Gtk.Scale(orientation=Gtk.Orientation.HORIZONTAL)
-        self.gamma_scale = Gtk.Scale(orientation=Gtk.Orientation.HORIZONTAL)
+    def create_widgets(self):  # {{{
+        default_adjustment = lambda: Gtk.Adjustment(
+            step_increment=0.01, page_increment=0.1
+        )
+        default_int_adjustment = lambda: Gtk.Adjustment(
+            step_increment=1, page_increment=5
+        )
+        # Unsharp
+        self.unsharp_scale = Gtk.Scale(
+            orientation=Gtk.Orientation.HORIZONTAL, adjustment=default_adjustment()
+        )
+        self.unsharp_scale.set_range(0, 5.0)
+        self.unsharp_scale.set_digits(2)
+        self.unsharp_radius_scale = Gtk.Scale(
+            orientation=Gtk.Orientation.HORIZONTAL, adjustment=default_adjustment()
+        )
+        self.unsharp_radius_scale.set_range(0.01, 20.0)
+        self.unsharp_radius_scale.set_digits(2)
+
+        # Gamma
+        self.gamma_scale = Gtk.Scale(
+            orientation=Gtk.Orientation.HORIZONTAL, adjustment=default_adjustment()
+        )
+        self.gamma_scale.set_range(0.7, 1.6)
         self.gamma_scale.set_digits(2)
-        self.multiply_scale = Gtk.Scale(orientation=Gtk.Orientation.HORIZONTAL)
+
+        # Multiply
+        self.multiply_scale = Gtk.Scale(
+            orientation=Gtk.Orientation.HORIZONTAL, adjustment=default_adjustment()
+        )
         self.multiply_scale.set_digits(2)
+        self.multiply_scale.set_range(0, 2.0)
+
+        # Diameter
         self.max_diameter_scale = Gtk.Scale(orientation=Gtk.Orientation.HORIZONTAL)
+        self.max_diameter_scale.set_range(4, 8)
+
+        # Spread
         self.spread_size_scale = Gtk.Scale(orientation=Gtk.Orientation.HORIZONTAL)
+        self.spread_size_scale.set_range(1, 10)
 
         self.pixel_size_entry = Gtk.SpinButton(
             adjustment=Gtk.Adjustment(
@@ -55,12 +114,7 @@ class ImageMoveApp(Gtk.Window):
         )
         self.image_width_entry.set_digits(2)
 
-        # self.output_width_entry = Gtk.SpinButton(
-        #     adjustment=Gtk.Adjustment(
-        #         value=200, lower=100, upper=4000, step_increment=10, page_increment=100
-        #     )
-        # )
-        # self.output_width_entry.set_digits(0)
+        # Normalize
         self.normalize_scale = Gtk.Scale(
             orientation=Gtk.Orientation.HORIZONTAL,
             adjustment=Gtk.Adjustment(
@@ -68,10 +122,34 @@ class ImageMoveApp(Gtk.Window):
             ),
         )
         self.normalize_scale.set_digits(2)
-        self.sharpen_scale = Gtk.Scale(orientation=Gtk.Orientation.HORIZONTAL)
-        self.threshold_scale = Gtk.Scale(orientation=Gtk.Orientation.HORIZONTAL)
-        self.hypersample_scale = Gtk.Scale(orientation=Gtk.Orientation.HORIZONTAL)
-        self.midtone_value_scale = Gtk.Scale(orientation=Gtk.Orientation.HORIZONTAL)
+
+        # Sharpen
+        self.sharpen_scale = Gtk.Scale(
+            orientation=Gtk.Orientation.HORIZONTAL, adjustment=default_adjustment()
+        )
+        self.sharpen_scale.set_range(0, 1.0)
+        self.sharpen_scale.set_digits(2)
+
+        # Threshold
+        self.threshold_scale = Gtk.Scale(
+            orientation=Gtk.Orientation.HORIZONTAL, adjustment=default_int_adjustment()
+        )
+        self.threshold_scale.set_range(0, 100)
+
+        # Hypersample
+        self.hypersample_scale = Gtk.Scale(
+            orientation=Gtk.Orientation.HORIZONTAL, adjustment=default_adjustment()
+        )
+        self.hypersample_scale.set_range(1, 7)
+        self.hypersample_scale.set_digits(0)
+
+        # Mid tone value
+        self.midtone_value_scale = Gtk.Scale(
+            orientation=Gtk.Orientation.HORIZONTAL, adjustment=default_int_adjustment()
+        )
+        self.midtone_value_scale.set_range(0, 255)
+        self.midtone_value_scale.set_digits(0)
+
         # Buttons
         self.randomize_button = Gtk.CheckButton(label="Randomize")
         self.spread_button = Gtk.CheckButton(label="Spread")
@@ -89,28 +167,15 @@ class ImageMoveApp(Gtk.Window):
             image=Gtk.Image.new_from_icon_name(Gtk.STOCK_OPEN, Gtk.IconSize.BUTTON),
         )
 
-        # Set the range and default values for the scales and toggles here
-        self.unsharp_scale.set_range(0, 5.0)
-        self.unsharp_radius_scale.set_range(0, 20.0)
-        self.gamma_scale.set_range(0.7, 1.6)
-        self.multiply_scale.set_range(0, 2.0)
-        self.max_diameter_scale.set_range(4, 8)
-        self.spread_size_scale.set_range(1, 10)
-        self.sharpen_scale.set_range(0, 1.0)
-        self.threshold_scale.set_range(0, 100)
-        self.hypersample_scale.set_range(1, 7)
+        # Create an EventBox to hold the image
+        self.image_event_box = Gtk.EventBox()
+        self.image_label = Gtk.Image()
+        self.image_label.set_can_focus(True)
+        self.image_event_box.add(self.image_label)
 
-        def only_odd(widget):
-            val = widget.get_value()
-            if val > 0:
-                if val % 2 == 0:
-                    widget.set_value(val - 1)
+        # }}}
 
-        self.hypersample_scale.connect("value-changed", only_odd)
-        self.hypersample_scale.set_digits(0)
-        self.midtone_value_scale.set_range(0, 255)
-        self.midtone_value_scale.set_digits(0)
-
+    def set_default_values(self):  # {{{
         # Set default values for scales and toggles
         self.unsharp_scale.set_value(default_values["unsharp"])
         self.unsharp_radius_scale.set_value(default_values["unsharp_radius"])
@@ -126,29 +191,9 @@ class ImageMoveApp(Gtk.Window):
         self.threshold_scale.set_value(default_values["threshold"])
         self.hypersample_scale.set_value(default_values["hypersample"])
         self.midtone_value_scale.set_value(default_values["midtone_value"])
+        # }}}
 
-        # Create an EventBox to hold the image
-        self.image_event_box = Gtk.EventBox()
-        # self.image_event_box.connect("button-press-event", self.on_button_press)
-        # self.image_event_box.connect("motion-notify-event", self.on_motion_notify)
-        # self.image_event_box.connect("button-release-event", self.on_button_release)
-
-        self.image_label = Gtk.Image()
-        self.image_label.set_can_focus(True)
-        self.image_event_box.add(self.image_label)
-
-        # Create labels and containers for parameters
-
-        def parameter_row(label, widget, align=Gtk.Align.END):
-            box = Gtk.HBox(spacing=SPACING)
-            label_widget = Gtk.Label(label=label)
-            box.pack_start(label_widget, False, False, 0)
-            box.pack_start(widget, True, True, 0)
-            # align label on the bottom
-            label_widget.set_valign(align)
-            widget.set_valign(align)
-            return box
-
+    def pack_widgets(self):  # {{{
         panel = Gtk.VBox(spacing=SPACING)
 
         panel.pack_start(self.open_button, False, False, SPACING * 2)
@@ -169,9 +214,6 @@ class ImageMoveApp(Gtk.Window):
             False,
             0,
         )
-        # panel.pack_start(
-        #     parameter_row("Output Width:", self.output_width_entry), False, False, 0
-        # )
         panel.pack_start(self.dotify_button, False, False, 0)
         panel.pack_start(self.use_squares_button, False, False, 0)
         panel.pack_start(self.randomize_button, False, False, 0)
@@ -206,12 +248,26 @@ class ImageMoveApp(Gtk.Window):
         panel.pack_start(
             parameter_row("Threshold:", self.threshold_scale), False, False, 0
         )
+        quit_button = Gtk.Button.new_with_label("Quit")
+        quit_button.connect("clicked", Gtk.main_quit)
+        panel.pack_end(quit_button, False, False, SPACING)
 
+        # Build root level widget & add it
         scrolled_window = Gtk.ScrolledWindow()
         scrolled_window.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
         scrolled_window.add(self.image_event_box)
+        panel_box = Gtk.Paned.new(Gtk.Orientation.HORIZONTAL)
+        panel_box.add1(scrolled_window)
+        panel_box.add2(panel)
+        # set default width of panel to 100
+        panel_box.set_position(500)
 
+        self.add(panel_box)
+        # }}}
+
+    def connect_events(self):  # {{{
         # Connect signal handlers for parameter changes
+        self.hypersample_scale.connect("value-changed", only_odd)
         self.unsharp_scale.connect("value-changed", self.update_image)
         self.unsharp_radius_scale.connect("value-changed", self.update_image)
 
@@ -239,19 +295,9 @@ class ImageMoveApp(Gtk.Window):
 
         self.process_button.connect("clicked", self.show_save_dialog)
         self.open_button.connect("clicked", self.show_open_dialog)
-        panel_box = Gtk.HBox()
-        panel_box.pack_start(main_box, True, True, SPACING)
-        panel_box.pack_start(panel, False, False, SPACING)
-        main_box.pack_start(scrolled_window, True, True, 0)
-        # add a quit button
-        quit_button = Gtk.Button.new_with_label("Quit")
-        quit_button.connect("clicked", Gtk.main_quit)
-        panel.pack_end(quit_button, False, False, SPACING)
 
-        self.update_image()
-        self.dotify_changed(self.dotify_button)
-
-        self.add(panel_box)
+        self.connect("destroy", Gtk.main_quit)
+        # }}}
 
     def load_image(self, image_path):
         self.image = Image.open(image_path)
@@ -259,7 +305,7 @@ class ImageMoveApp(Gtk.Window):
         self.original = self.image_array
         self.IMAGE_PATH = image_path
 
-    def update_image(self, *a):
+    def update_image(self, *a):  # Calls process_image in a thread {{{
         if self.image is None:
             return
 
@@ -273,7 +319,7 @@ class ImageMoveApp(Gtk.Window):
         self.processing_thread = threading.Thread(
             target=self.process_image, daemon=True
         )
-        self.processing_thread.start()
+        self.processing_thread.start()  # }}}
 
     @property
     def output_width(self):
@@ -281,7 +327,7 @@ class ImageMoveApp(Gtk.Window):
             self.pixel_size_entry.get_value() / 10.0
         )
 
-    def process_image(self):
+    def process_image(self):  # {{{
         unsharp = self.unsharp_scale.get_value()
         unsharp_radius = self.unsharp_radius_scale.get_value()
         gamma = self.gamma_scale.get_value()
@@ -328,9 +374,9 @@ class ImageMoveApp(Gtk.Window):
         if self._dirty:
             self._dirty = False
             self.process_image()
+        # }}}
 
-    def dotify_changed(self, widget):
-        # disable spread size, spread button, max_diameter, multiply_scale when the widget isn't active
+    def dotify_changed(self, widget):  # {{{
         sensitivity = widget.get_active()
         self.spread_button.set_sensitive(sensitivity)
         self.spread_size_scale.set_sensitive(
@@ -344,8 +390,9 @@ class ImageMoveApp(Gtk.Window):
         self.use_squares_button.set_sensitive(sensitivity)
         self.image_width_entry.set_sensitive(sensitivity)
         self.pixel_size_entry.set_sensitive(sensitivity)
+        # }}}
 
-    def update_display_image(self, image_array):
+    def update_display_image(self, image_array):  # {{{
         if self.image is None:
             return
 
@@ -363,9 +410,9 @@ class ImageMoveApp(Gtk.Window):
             3 * width,
         )
 
-        self.image_label.set_from_pixbuf(img)
+        self.image_label.set_from_pixbuf(img)  # }}}
 
-    def process_and_save_image(self, filename):
+    def process_and_save_image(self, filename):  # {{{
         if self.image is None:
             return
 
@@ -414,8 +461,9 @@ class ImageMoveApp(Gtk.Window):
         processed_image = Image.fromarray(processed_image_array.astype(np.uint8))
 
         # Save the processed image to the specified file
-        processed_image.save(filename)
+        processed_image.save(filename)  # }}}
 
+    # Dialogs/Modals {{{
     def show_save_dialog(self, widget):
         if self.image is None:
             return
@@ -458,22 +506,7 @@ class ImageMoveApp(Gtk.Window):
             self.update_image()
         dialog.destroy()
 
-    # def on_button_press(self, widget, event):
-    #     if event.button == Gdk.BUTTON_PRIMARY:
-    #         self.dragging = True
-    #         self.start_x, self.start_y = event.x, event.y
-    #
-    # def on_motion_notify(self, widget, event):
-    #     if self.dragging:
-    #         delta_x = event.x - self.start_x
-    #         delta_y = event.y - self.start_y
-    #         adjustment = widget.get_vadjustment()
-    #         adjustment.set_value(adjustment.get_value() - delta_y)
-    #         self.start_x, self.start_y = event.x, event.y
-    #
-    # def on_button_release(self, widget, event):
-    #     if event.button == Gdk.BUTTON_PRIMARY:
-    #         self.dragging = False
+    # }}}
 
 
 def thread_enter():
